@@ -1,0 +1,44 @@
+{
+	"name": "picf",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "wrangler types --include-env=false --check && vite build",
+		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
+		"deploy": "npm run db:migrate && wrangler deploy",
+		"db:migrate": "wrangler d1 migrations apply DB --remote",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "wrangler types --include-env=false --check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"gen": "wrangler types --include-env=false",
+		"test:unit": "vitest",
+		"test": "npm run test:unit -- --run"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-cloudflare": "^7.2.8",
+		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/node": "^26.6.3",
+		"svelte": "^5.56.1",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16",
+		"vitest": "^4.1.8",
+		"wrangler": "^4.97.0"
+	},
+	"dependencies": {
+		"wasm-vips": "^0.0.18"
+	},
+	"cloudflare": {
+		"bindings": {
+			"ADMIN_USER": {
+				"description": "管理员用户名，用于登录管理页面和 API 上传。"
+			},
+			"ADMIN_PASSWORD": {
+				"description": "管理员密码，请使用足够强的密码。修改后所有已登录的会话会失效。"
+			}
+		}
+	}
+}

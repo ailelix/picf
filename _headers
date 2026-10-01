@@ -1,0 +1,4 @@
+# 静态资源（JS、wasm）的响应头，构建时由 adapter-cloudflare 合并；SSR 页面的同名响应头在 src/hooks.server.ts
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

@@ -1,0 +1,36 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "picf",
+	"compatibility_date": "2026-09-28",
+	"compatibility_flags": [
+		"nodejs_als"
+	],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"workers_dev": true,
+	"preview_urls": true,
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "picf-images"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "picf-db",
+			// 占位值。一键部署时 Cloudflare 会创建数据库并替换为实际 ID；本地开发不需要
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "migrations"
+		}
+	],
+	"images": {
+		"binding": "IMAGES"
+	},
+	// 所有配置都是环境变量，在 Cloudflare 控制台设置，列表和说明见 README（本地开发写在 .env）。
+	// 部署时保留控制台里的变量，不用本文件覆盖
+	"keep_vars": true
+}
