@@ -12,6 +12,8 @@
 	},
 	"workers_dev": true,
 	"preview_urls": true,
+	// R2 存储桶和 D1 数据库的名称可以修改（见 README「自定义 R2 和 D1 的名称」）：部署时已有同名资源
+	// 就直接绑定，没有则自动创建。绑定以本文件为准，在控制台中修改绑定会在下次部署时被覆盖
 	"r2_buckets": [
 		{
 			"binding": "BUCKET",

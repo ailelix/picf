@@ -25,10 +25,13 @@
 		error?: string;
 	}
 
+	/** 同时上传的文件数。浏览器端 WASM 处理在 Worker 里仍是逐个进行的 */
+	const CONCURRENCY = 3;
+
 	let items = $state<Item[]>([]);
 	let dragging = $state(false);
 	let nextId = 0;
-	let running = false;
+	let active = 0;
 
 	onMount(() => () => items.forEach((item) => item.preview && URL.revokeObjectURL(item.preview)));
 
@@ -47,33 +50,42 @@
 				status: 'waiting'
 			});
 		}
-		void run();
+		pump();
 	}
 
-	/** 依次上传队列里等待中的文件 */
-	async function run() {
-		if (running) return;
-		running = true;
-		try {
-			const wasmAvailable = isWasmAvailable();
-			let item: Item | undefined;
-			while ((item = items.find((i) => i.status === 'waiting'))) {
-				const current = item;
-				try {
-					current.result = await uploadImage(current.file, data.config, {
-						wasmAvailable,
-						transform: transformWithWasm,
-						onStage: (stage) => (current.status = stage)
-					});
-					current.status = 'done';
-				} catch (error) {
-					current.error = errorMessage(t, error);
-					current.status = 'error';
-				}
-			}
-		} finally {
-			running = false;
+	/** 按队列顺序启动等待中的文件，同时进行的不超过 CONCURRENCY 个 */
+	function pump() {
+		let item: Item | undefined;
+		while (active < CONCURRENCY && (item = items.find((i) => i.status === 'waiting'))) {
+			active++;
+			void upload(item).finally(() => {
+				active--;
+				pump();
+			});
 		}
+	}
+
+	async function upload(item: Item) {
+		// 立即离开 waiting 状态，避免被下一轮 pump 重复选中
+		item.status = 'uploading';
+		try {
+			item.result = await uploadImage(item.file, data.config, {
+				wasmAvailable: isWasmAvailable(),
+				transform: transformWithWasm,
+				onStage: (stage) => (item.status = stage)
+			});
+			item.status = 'done';
+		} catch (error) {
+			item.error = errorMessage(t, error);
+			item.status = 'error';
+		}
+	}
+
+	/** 只能移除还没开始或已失败的文件；处理或上传中的不能中途取消 */
+	function remove(item: Item) {
+		if (item.status !== 'waiting' && item.status !== 'error') return;
+		if (item.preview) URL.revokeObjectURL(item.preview);
+		items = items.filter((i) => i.id !== item.id);
 	}
 
 	function clearFinished() {
@@ -129,7 +141,7 @@
 	<strong>{t('upload.drop')}</strong>
 	<span class="muted">{t('upload.paste')}</span>
 	<span class="muted small">
-		{t('upload.hintImages')}{data.config.allowVideo ? `, ${t('upload.hintVideos')}` : ''}
+		{t('upload.hintImages')}{data.config.allowVideo ? t('upload.hintVideos') : ''}
 	</span>
 </label>
 
@@ -183,6 +195,10 @@
 							</button>
 						{/each}
 					</div>
+				{:else if item.status === 'waiting' || item.status === 'error'}
+					<button class="icon-btn remove" title={t('upload.remove')} aria-label={t('upload.remove')} onclick={() => remove(item)}>
+						<Icon name="close" />
+					</button>
 				{/if}
 			</li>
 		{/each}
@@ -301,6 +317,9 @@
 	}
 	.error-text {
 		color: var(--danger);
+	}
+	.remove {
+		flex: none;
 	}
 	.copy {
 		display: flex;

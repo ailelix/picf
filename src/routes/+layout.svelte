@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
-	import favicon from '$lib/assets/favicon.svg';
+	import logo from '$lib/assets/logo.png';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
 	import Toasts from '$lib/components/Toasts.svelte';
 	import type { MessageKey } from '$lib/i18n/messages';
@@ -24,12 +24,17 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<!-- static/favicon.ico 含 16/32/48 三种尺寸；高分辨率场景和苹果设备主屏幕用原图 -->
+	<link rel="icon" href="/favicon.ico" sizes="48x48" />
+	<link rel="icon" href={logo} type="image/png" sizes="256x256" />
+	<link rel="apple-touch-icon" href={logo} />
 	<title>{t('app.name')}</title>
 </svelte:head>
 
 <header>
-	<a class="brand" href="/">{t('app.name')}</a>
+	<a class="brand" href="/" aria-label={t('app.name')}>
+		<img src={logo} alt="" width="36" height="36" />
+	</a>
 
 	{#if data.loggedIn}
 		<nav>
@@ -85,11 +90,12 @@
 		padding: 12px 16px;
 	}
 	.brand {
+		display: flex;
 		margin-right: 12px;
-		color: var(--text);
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
+		border-radius: var(--radius-s);
+	}
+	.brand img {
+		display: block;
 	}
 	nav {
 		display: flex;

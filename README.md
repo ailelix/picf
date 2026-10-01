@@ -57,6 +57,26 @@ Cloudflare Images 免费版每月提供 5000 次转换。额度用完后不会�
 
 R2 存储桶和 D1 数据库同样会在首次部署时自动创建。部署完成后，在 Worker 的「设置 → 变量和机密」中添加 `ADMIN_USER`、`ADMIN_PASSWORD`，然后按下一节配置 R2 公共访问。
 
+### 自定义 R2 和 D1 的名称
+
+R2 存储桶和 D1 数据库的名称在 `wrangler.jsonc` 中设置，默认分别为 `picf-images` 和 `picf-db`：
+
+```jsonc
+"r2_buckets": [{ "binding": "BUCKET", "bucket_name": "picf-images" }],
+"d1_databases": [{ "binding": "DB", "database_name": "picf-db", "migrations_dir": "migrations" }]
+```
+
+- 使用一键部署时，可以在配置页面中直接修改这两个名称，Cloudflare 会将修改写入新建仓库的 `wrangler.jsonc`。
+- 在控制台中导入仓库时，修改自己仓库中的 `bucket_name` 和 `database_name`，然后推送即可。
+
+部署时，如果账号中已有同名的存储桶或数据库，会直接绑定该资源，不会重复创建；没有则自动创建。因此，这种方式也可以用来绑定已有的存储桶和数据库。新绑定的数据库会在部署时自动执行数据库迁移。
+
+需要注意以下几点：
+
+- 不要在控制台的「绑定（Bindings）」页面中修改这两个绑定。绑定以 `wrangler.jsonc` 为准，在控制台中所做的修改会在下次部署时被覆盖。
+- 更换存储桶或数据库后，原有的文件和图片记录不会自动迁移。
+- 更换存储桶后，需要将 `R2_PUBLIC_URL` 改为新存储桶的公共访问地址。
+
 ### 配置 R2 公共访问
 
 上传的文件由 R2 存储桶的公共域名直接对外提供，不经过 Worker。因此，部署后需要为存储桶开启公共访问，并将访问地址配置到环境变量 `R2_PUBLIC_URL` 中。
