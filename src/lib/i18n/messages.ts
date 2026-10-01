@@ -60,7 +60,6 @@ const zh = {
 	'error.UNSUPPORTED_FORMAT': '不支持的文件格式',
 	'error.VIDEO_DISABLED': '未开启视频上传',
 	'error.TOO_LARGE': '文件过大',
-	'error.CSRF': '请求被拒绝',
 	'error.NOT_FOUND': '文件不存在',
 	'error.unknown': '出错了：{message}'
 };
@@ -130,7 +129,6 @@ const en: Messages = {
 	'error.UNSUPPORTED_FORMAT': 'Unsupported file format',
 	'error.VIDEO_DISABLED': 'Video uploads are disabled',
 	'error.TOO_LARGE': 'File is too large',
-	'error.CSRF': 'Request rejected',
 	'error.NOT_FOUND': 'File not found',
 	'error.unknown': 'Something went wrong: {message}'
 };

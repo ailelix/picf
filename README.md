@@ -11,7 +11,6 @@ picf 是一个运行在 Cloudflare Workers 上的单用户图床。项目基于 
 - **格式转换**：上传时自动将指定格式的图片转换为统一的目标格式（WebP、AVIF、JPEG 或 PNG），并可设置压缩质量和最长边上限。转换后的图片总会去除 EXIF 等元数据（含 GPS 位置）；不转换的格式原样保存，保留原有元数据。
 - **图片管理**：登录后可浏览已上传的文件，复制链接（URL、Markdown、HTML 三种格式）或删除文件。
 - **匿名上传**：可通过环境变量开启。开启后，未登录的访客可以在首页上传文件，但无法查看文件列表或删除文件。
-- **API 上传**：支持通过 HTTP 接口上传，可配合 PicGo、ShareX 等工具使用。
 - **界面**：支持中文和英文、浅色和深色主题。默认跟随浏览器语言和系统主题，也可以手动切换。
 
 ### 图片处理流程
@@ -20,9 +19,9 @@ picf 使用两种方式处理图片，按以下顺序选择：
 
 1. 优先由 Cloudflare Images 在服务端转换。
 2. 当 Cloudflare Images 无法处理时，由浏览器使用 WASM（wasm-vips）在本地转换后再上传。无法处理的情况包括：输入格式不受支持（Cloudflare Images 不接受 TIFF、BMP、ICO 和 AVIF 作为输入）、图片尺寸或体积超出限制、当月免费额度已用完。
-3. 通过 API 上传时没有浏览器参与，若 Cloudflare Images 处理失败，文件将原样保存。
+3. 如果两种方式都无法处理，文件将原样保存。
 
-Cloudflare Images 免费版每月提供 5000 次转换。额度用完后不会产生费用：网页上传改由浏览器处理，API 上传原样保存。
+Cloudflare Images 免费版每月提供 5000 次转换。额度用完后不会产生费用，图片改由浏览器处理。
 
 ## 部署
 
@@ -144,47 +143,7 @@ picf 的所有配置都通过环境变量设置。`ADMIN_USER` 和 `ADMIN_PASSWO
 | `ALLOW_VIDEO` | `true` | 是否允许上传视频（MP4、WebM、MOV，原样保存）。 |
 | `TIMEZONE` | `UTC` | 文件在 R2 中按「年/月/日」分目录存放，例如 `2026/09/29/aB3xK9mQ2zLp.webp`。此项指定计算日期所用的时区，取值为 IANA 时区名，例如 `Asia/Shanghai`。 |
 
-布尔值可以写作 `true`/`false`、`1`/`0`、`yes`/`no` 或 `on`/`off`，不区分大小写。
-
-## API
-
-### 上传文件
-
-```
-POST /api/images
-```
-
-请求体为 `multipart/form-data`，文件放在 `file` 字段中。接口使用 HTTP Basic Auth 认证，凭证为管理员的用户名和密码。
-
-示例：
-
-```sh
-curl -u 用户名:密码 -F file=@photo.jpg https://example.com/api/images
-```
-
-上传成功时返回 `201`，响应体为 JSON，其中 `url` 字段为文件地址：
-
-```json
-{
-  "id": "…",
-  "url": "https://img.example.com/2026/09/29/xxxx.webp",
-  "format": "webp",
-  "size": 12345
-}
-```
-
-开启匿名上传后，请求可以不携带 `Authorization` 请求头。如果携带了凭证但凭证错误，接口返回 `401`，不会作为匿名上传处理，以免客户端的凭证配置错误未被发现。
-
-### 配置第三方工具
-
-PicGo（需安装 web-uploader 插件）、ShareX 等工具可按下表配置自定义上传：
-
-| 配置项 | 值 |
-|---|---|
-| 上传地址 | `https://example.com/api/images`，请求方法为 POST |
-| 文件字段名 | `file` |
-| 请求头 | `Authorization: Basic <“用户名:密码”的 Base64 编码>` |
-| 返回地址 | 响应 JSON 中的 `url` 字段 |
+布尔值的取值为 `true` 或 `false`。
 
 ## 本地开发
 

@@ -2,34 +2,26 @@ import { json } from '@sveltejs/kit';
 import {
 	MAX_VIDEO_BYTES,
 	UPLOAD_MODES,
-	IMAGE_PAGE_SIZE,
 	type ApiError,
 	type ClientProcessingRequired,
-	type ImageList,
 	type UploadedImage,
 	type UploadMode
 } from '$lib/api';
 import { mediaBase, requireEnv } from '$lib/server/env';
-import { listImages, publicUrl } from '$lib/server/images';
+import { listImages } from '$lib/server/images';
 import { handleUpload } from '$lib/server/upload';
 import type { RequestHandler } from './$types';
 
-/** GET /api/images?limit=30&cursor=... 按时间倒序列出图片 */
+/** GET /api/images?cursor=... 图片管理页的「加载更多」，按时间倒序列出图片 */
 export const GET: RequestHandler = async ({ platform, url, locals }) => {
-	const env = requireEnv(platform);
-	const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || IMAGE_PAGE_SIZE));
-	const page = await listImages(env.DB, { limit, cursor: url.searchParams.get('cursor') });
 	const base = mediaBase(locals.config, url.origin);
-	return json({
-		items: page.items.map((r) => ({ ...r, url: publicUrl(base, r.key) })),
-		cursor: page.cursor
-	} satisfies ImageList);
+	return json(await listImages(requireEnv(platform).DB, base, url.searchParams.get('cursor')));
 };
 
 /**
- * POST /api/images，multipart/form-data：
- * - file：图片或视频（必填）
- * - mode：auto（默认）| fallback | processed | raw，含义见 $lib/api
+ * POST /api/images，供上传页使用，multipart/form-data：
+ * - file：图片或视频
+ * - mode：auto | fallback | processed | raw，含义见 $lib/api
  * 开启匿名上传时未登录也能调用（见 hooks.server.ts）。
  */
 export const POST: RequestHandler = async ({ platform, request, url, locals }) => {
@@ -50,7 +42,7 @@ export const POST: RequestHandler = async ({ platform, request, url, locals }) =
 		return json({ error: 'BAD_REQUEST', message: '缺少 file 字段' }, { status: 400 });
 	}
 
-	const mode = form.get('mode') ?? 'auto';
+	const mode = form.get('mode');
 	if (!UPLOAD_MODES.includes(mode as UploadMode)) {
 		return json({ error: 'BAD_REQUEST', message: `mode 只能是 ${UPLOAD_MODES.join(' / ')}` } satisfies ApiError, {
 			status: 400
@@ -59,31 +51,18 @@ export const POST: RequestHandler = async ({ platform, request, url, locals }) =
 
 	const result = await handleUpload(env, file, mode as UploadMode, {
 		config: locals.config,
-		uploader: locals.auth ? 'admin' : 'anonymous'
+		uploader: locals.loggedIn ? 'admin' : 'anonymous'
 	});
 
 	switch (result.kind) {
 		case 'saved': {
-			const { record, media, engine } = result;
-			return json(
-				{
-					id: record.id,
-					key: record.key,
-					url: publicUrl(mediaBase(locals.config, url.origin), record.key),
-					createdAt: record.createdAt,
-					...media,
-					engine
-				} satisfies UploadedImage,
-				{ status: 201 }
-			);
+			const { key, media, engine } = result;
+			const link = `${mediaBase(locals.config, url.origin)}/${key}`;
+			return json({ url: link, ...media, engine } satisfies UploadedImage, { status: 201 });
 		}
 		case 'fallback':
 			return json(
-				{
-					error: 'CLIENT_PROCESSING_REQUIRED',
-					spec: result.spec,
-					reasons: result.reasons
-				} satisfies ClientProcessingRequired,
+				{ error: 'CLIENT_PROCESSING_REQUIRED', spec: result.spec } satisfies ClientProcessingRequired,
 				{ status: 422 }
 			);
 		case 'rejected':

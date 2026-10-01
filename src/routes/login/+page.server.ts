@@ -9,7 +9,7 @@ function safeNext(url: URL): string {
 }
 
 export const load: PageServerLoad = ({ locals, url }) => {
-	if (locals.auth) redirect(303, safeNext(url));
+	if (locals.loggedIn) redirect(303, safeNext(url));
 };
 
 export const actions: Actions = {

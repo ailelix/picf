@@ -1,42 +1,20 @@
-import {
-	MAX_IMAGE_BYTES,
-	MAX_VIDEO_BYTES,
-	type Engine,
-	type Uploader,
-	type UploadMode
-} from '$lib/api';
-import {
-	EXTENSIONS,
-	ImagingError,
-	MIME_TYPES,
-	plan,
-	probe,
-	type ImageInfo,
-	type Rejection,
-	type TransformSpec
-} from '$lib/imaging/core';
-import { transformWithCf } from '$lib/imaging/server/cf';
+import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, type Engine, type Uploader, type UploadMode } from '$lib/api';
+import { transformWithCf } from '$lib/imaging/cf';
+import { EXTENSIONS, MIME_TYPES, probe, PROBE_BYTES, type ImageInfo } from '$lib/imaging/formats';
+import { plan, type TransformSpec } from '$lib/imaging/planner';
 import { sniffVideo, VIDEO_MIME_TYPES, type VideoFormat } from '$lib/video';
 import type { AppConfig } from './env';
-import { saveImage, type ImageRecord } from './images';
+import { saveImage } from './images';
 
-/** 识别格式和读宽高只看文件开头；JPEG 的尺寸信息可能排在较大的 EXIF 之后，所以留足余量 */
-const PROBE_BYTES = 256 * 1024;
-
-export type SavedMedia =
+type SavedMedia =
 	| { kind: 'image'; format: ImageInfo['format']; size: number; width?: number; height?: number }
 	| { kind: 'video'; format: VideoFormat; size: number };
 
-export type UploadResult =
-	| { kind: 'saved'; record: ImageRecord; media: SavedMedia; engine: Engine }
+type UploadResult =
+	| { kind: 'saved'; key: string; media: SavedMedia; engine: Engine }
 	/** 需要浏览器按 spec 处理后以 processed 模式重新上传 */
-	| { kind: 'fallback'; spec: TransformSpec; reasons: Rejection[] }
+	| { kind: 'fallback'; spec: TransformSpec }
 	| { kind: 'rejected'; status: 403 | 413 | 415; error: string; message: string };
-
-export interface UploadContext {
-	config: AppConfig;
-	uploader: Uploader;
-}
 
 const tooLarge = (limit: number): UploadResult => ({
 	kind: 'rejected',
@@ -50,12 +28,12 @@ export async function handleUpload(
 	env: Env,
 	file: File,
 	mode: UploadMode,
-	{ config, uploader }: UploadContext
+	{ config, uploader }: { config: AppConfig; uploader: Uploader }
 ): Promise<UploadResult> {
 	const head = new Uint8Array(await file.slice(0, PROBE_BYTES).arrayBuffer());
 	const info = probe(head, file.size);
 	const store = async (body: Blob | Uint8Array, media: SavedMedia, engine: Engine): Promise<UploadResult> => {
-		const record = await saveImage(env, {
+		const key = await saveImage(env, {
 			body,
 			extension: media.kind === 'image' ? EXTENSIONS[media.format] : media.format,
 			contentType: media.kind === 'image' ? MIME_TYPES[media.format] : VIDEO_MIME_TYPES[media.format],
@@ -64,7 +42,7 @@ export async function handleUpload(
 			uploader,
 			timeZone: config.timeZone
 		});
-		return { kind: 'saved', record, media, engine };
+		return { kind: 'saved', key, media, engine };
 	};
 
 	if (!info) {
@@ -83,22 +61,17 @@ export async function handleUpload(
 	if (mode === 'processed') return store(file, image(info), 'wasm');
 	if (mode === 'raw') return store(file, image(info), 'none');
 
-	const p = plan(info, config.imaging, { cfEnabled: config.cfImage, wasmAvailable: mode === 'fallback' });
-	if (p.kind === 'store') return store(file, image(info), 'none');
+	const p = plan(info, config.imaging, { cf: config.cfImage, wasm: mode === 'fallback' });
+	if (!p) return store(file, image(info), 'none');
 
-	const reasons = [...p.rejected];
-	for (const engine of p.engines) {
-		if (engine === 'wasm') return { kind: 'fallback', spec: p.spec, reasons };
-		try {
-			const result = await transformWithCf(env.IMAGES, new Uint8Array(await file.arrayBuffer()), p.spec);
-			const output = probe(result.bytes) ?? { format: p.spec.format, size: result.bytes.length };
-			return store(result.bytes, image(output), 'cf');
-		} catch (error) {
-			if (!(error instanceof ImagingError)) throw error;
-			console.warn(`CF Images 处理失败，尝试降级：${error.message}`);
-			reasons.push({ engine: 'cf', code: error.code });
-		}
+	if (p.engines[0] === 'cf') {
+		const output = await transformWithCf(env.IMAGES, file, p.spec).catch((error) => {
+			console.warn('CF Images 处理失败，尝试降级', error);
+			return null;
+		});
+		if (output) return store(output, image(probe(output) ?? { format: p.spec.format, size: output.length }), 'cf');
 	}
-	// 走到这里说明只有 CF 可用且失败了，原样保存
+	// CF 处理不了或失败了：能用 WASM 时交给浏览器，否则原样保存
+	if (p.engines.includes('wasm')) return { kind: 'fallback', spec: p.spec };
 	return store(file, image(info), 'none');
 }

@@ -1,7 +1,20 @@
+/** 界面偏好（语言、主题）。常量和函数也会被服务端 hooks 用到 */
 import { createContext } from 'svelte';
 import { LOCALE_COOKIE, translate, type Locale } from '$lib/i18n/locale';
 import type { MessageKey } from '$lib/i18n/messages';
-import { htmlLang, PREF_COOKIE_MAX_AGE, THEME_COOKIE, THEMES, type Theme } from '$lib/prefs';
+
+export const THEMES = ['auto', 'light', 'dark'] as const;
+export type Theme = (typeof THEMES)[number];
+export const THEME_COOKIE = 'theme';
+
+export function isTheme(value: unknown): value is Theme {
+	return THEMES.includes(value as Theme);
+}
+
+/** <html lang> 的取值 */
+export function htmlLang(locale: Locale): string {
+	return locale === 'zh' ? 'zh-CN' : 'en';
+}
 
 /**
  * 当前语言和主题。每次渲染由根布局创建一份并放进 context，
@@ -35,8 +48,9 @@ export class Preferences {
 	}
 }
 
+/** 偏好用 cookie 保存一年，这样服务端渲染时就能输出正确的语言和主题，页面不会闪烁 */
 function saveCookie(name: string, value: string) {
-	document.cookie = `${name}=${value}; path=/; max-age=${PREF_COOKIE_MAX_AGE}; samesite=lax`;
+	document.cookie = `${name}=${value}; path=/; max-age=${365 * 24 * 60 * 60}; samesite=lax`;
 }
 
 export const [getPrefs, setPrefs] = createContext<Preferences>();

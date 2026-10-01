@@ -41,6 +41,9 @@ export interface ImageInfo {
 	height?: number;
 }
 
+/** 识别格式和读宽高只需要文件开头；JPEG 的尺寸信息可能排在较大的 EXIF 之后，所以留足余量 */
+export const PROBE_BYTES = 256 * 1024;
+
 /** 识别 SVG 时最多检查开头这么多字节 */
 const SNIFF_BYTES = 4096;
 

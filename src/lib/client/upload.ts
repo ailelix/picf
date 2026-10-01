@@ -6,13 +6,11 @@ import {
 	type UploadedImage,
 	type UploadMode
 } from '$lib/api';
-import { MIME_TYPES, plan, probe, type TransformSpec } from '$lib/imaging/core';
-import { isWasmAvailable, transformWithWasm } from '$lib/imaging/client/wasm';
+import { MIME_TYPES, probe, PROBE_BYTES } from '$lib/imaging/formats';
+import { plan, type TransformSpec } from '$lib/imaging/planner';
+import { isWasmAvailable, transformWithWasm } from '$lib/imaging/wasm';
 import { sniffVideo } from '$lib/video';
 import { ApiRequestError, requestJson } from './http';
-
-/** 与服务端一致：识别格式只看文件开头 */
-const PROBE_BYTES = 256 * 1024;
 
 export type UploadStage = 'uploading' | 'processing';
 
@@ -51,7 +49,7 @@ export async function uploadImage(
 		let output: Uint8Array;
 		try {
 			const bytes = new Uint8Array(await file.arrayBuffer());
-			output = (await transformWithWasm(bytes, info.format, spec)).bytes;
+			output = await transformWithWasm(bytes, info.format, spec);
 		} catch (error) {
 			console.warn('WASM 处理失败，原样上传', error);
 			return send(file, 'raw');
@@ -60,8 +58,8 @@ export async function uploadImage(
 		return send(new File([output as BlobPart], file.name, { type: MIME_TYPES[spec.format] }), 'processed');
 	};
 
-	const p = plan(info, config.imaging, { cfEnabled: config.cfEnabled, wasmAvailable: isWasmAvailable() });
-	if (p.kind === 'store') return send(file, 'raw');
+	const p = plan(info, config.imaging, { cf: config.cfImage, wasm: isWasmAvailable() });
+	if (!p) return send(file, 'raw');
 	if (p.engines[0] === 'wasm') return processLocally(p.spec);
 
 	// CF 优先：能退回 WASM 时用 fallback 模式，服务端处理不了会返回 422 和 spec；否则用 auto，服务端失败就原样保存

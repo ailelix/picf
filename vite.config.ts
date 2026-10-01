@@ -15,9 +15,7 @@ export default defineConfig({
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 				runes: ({ filename }) => filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
-			// 自带的检查会拦截没有 Origin 头的 API 上传（PicGo 等），改在 hooks.server.ts 里自己做
-			csrf: { trustedOrigins: ['*'] }
+			adapter: adapter()
 		})
 	],
 	server: { headers: isolationHeaders },

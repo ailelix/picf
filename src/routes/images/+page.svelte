@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
-	import { IMAGE_PAGE_SIZE, type ImageList, type ListedImage } from '$lib/api';
+	import type { ImageList, ListedImage } from '$lib/api';
 	import { ApiRequestError, requestJson } from '$lib/client/http';
 	import Icon from '$lib/components/Icon.svelte';
 	import { errorMessage } from '$lib/i18n/errors';
@@ -34,9 +34,7 @@
 		if (!cursor || loading) return;
 		loading = true;
 		try {
-			const page = await requestJson<ImageList>(
-				`/api/images?limit=${IMAGE_PAGE_SIZE}&cursor=${encodeURIComponent(cursor)}`
-			);
+			const page = await requestJson<ImageList>(`/api/images?cursor=${encodeURIComponent(cursor)}`);
 			items.push(...page.items);
 			cursor = page.cursor;
 		} catch (error) {

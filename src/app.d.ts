@@ -34,10 +34,9 @@ declare global {
 
 		// interface Error {}
 		interface Locals {
-			/** 当前请求的认证方式：网页登录的会话 cookie、API 的 Basic Auth，未认证为 null */
-			auth: 'session' | 'basic' | null;
+			loggedIn: boolean;
 			locale: import('$lib/i18n/locale').Locale;
-			theme: import('$lib/prefs').Theme;
+			theme: import('$lib/prefs.svelte').Theme;
 			/** 由环境变量解析出的配置；hooks 在配置有问题时直接返回配置提示，所以路由里一定存在 */
 			config: import('$lib/server/env').AppConfig;
 		}

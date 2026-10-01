@@ -1,11 +1,4 @@
-import type { Engine, Uploader } from '$lib/api';
-
-export interface ImageRecord {
-	id: string;
-	/** R2 key，即 images.url 列，如 2026/09/28/aB3dE5fG7hJ9.webp */
-	key: string;
-	createdAt: number;
-}
+import type { Engine, ImageList, Uploader } from '$lib/api';
 
 const ID_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const ID_LENGTH = 12;
@@ -30,27 +23,7 @@ function objectKey(id: string, extension: string, timeZone: string): string {
 	return `${parts.year}/${parts.month}/${parts.day}/${id}.${extension}`;
 }
 
-/** 与 objectKey 生成的格式一致，用于在读 R2 之前过滤掉无效路径（本地开发的 /i/ 路由） */
-export const OBJECT_KEY_PATTERN = /^\d{4}\/\d{2}\/\d{2}\/[0-9A-Za-z]+\.[a-z0-9]+$/;
-
-export function publicUrl(base: string, key: string): string {
-	return `${base}/${key}`;
-}
-
-/** 规范化 R2_PUBLIC_URL：允许只写域名（补 https://）或带路径前缀，去掉末尾斜杠；未设置或非法时返回 null */
-export function normalizeBaseUrl(value: string | undefined): string | null {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-	try {
-		const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
-		if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error(url.protocol);
-		return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
-	} catch {
-		return null;
-	}
-}
-
-export interface SaveInput {
+interface SaveInput {
 	/** 传 Blob（如上传的 File）时直接写入 R2，不会在内存里再复制一份 */
 	body: Blob | Uint8Array;
 	extension: string;
@@ -62,8 +35,8 @@ export interface SaveInput {
 	timeZone: string;
 }
 
-/** 图片和视频都存在 images 表里 */
-export async function saveImage(env: Pick<Env, 'BUCKET' | 'DB'>, input: SaveInput): Promise<ImageRecord> {
+/** 图片和视频都存在 images 表里；返回 R2 key（即 images.url 列，如 2026/09/28/aB3dE5fG7hJ9.webp） */
+export async function saveImage(env: Pick<Env, 'BUCKET' | 'DB'>, input: SaveInput): Promise<string> {
 	const id = newId();
 	const key = objectKey(id, input.extension, input.timeZone);
 	await env.BUCKET.put(key, input.body, {
@@ -79,45 +52,36 @@ export async function saveImage(env: Pick<Env, 'BUCKET' | 'DB'>, input: SaveInpu
 	});
 
 	try {
-		const row = await env.DB.prepare('INSERT INTO images (id, url) VALUES (?, ?) RETURNING created_at')
-			.bind(id, key)
-			.first<{ created_at: number }>();
-		return { id, key, createdAt: row!.created_at };
+		await env.DB.prepare('INSERT INTO images (id, url) VALUES (?, ?)').bind(id, key).run();
+		return key;
 	} catch (error) {
 		await env.BUCKET.delete(key);
 		throw error;
 	}
 }
 
-export interface ImagePage {
-	items: ImageRecord[];
-	/** 下一页的游标，没有更多时为 null */
-	cursor: string | null;
-}
+/** 图片管理页每页数量 */
+const PAGE_SIZE = 30;
 
-/** 按时间倒序分页；游标是上一页最后一条的 `created_at:id` */
-export async function listImages(db: D1Database, opts: { limit: number; cursor?: string | null }): Promise<ImagePage> {
-	const after = parseCursor(opts.cursor);
-	const stmt = after
-		? db
-				.prepare(
-					'SELECT id, url, created_at FROM images WHERE (created_at, id) < (?, ?) ORDER BY created_at DESC, id DESC LIMIT ?'
-				)
-				.bind(after.createdAt, after.id, opts.limit + 1)
-		: db.prepare('SELECT id, url, created_at FROM images ORDER BY created_at DESC, id DESC LIMIT ?').bind(opts.limit + 1);
-
-	const { results } = await stmt.all<{ id: string; url: string; created_at: number }>();
-	const items = results.slice(0, opts.limit).map((r) => ({ id: r.id, key: r.url, createdAt: r.created_at }));
-	const last = items.at(-1);
-	return {
-		items,
-		cursor: results.length > opts.limit && last ? `${last.createdAt}:${last.id}` : null
-	};
-}
-
-function parseCursor(cursor: string | null | undefined) {
+/**
+ * 按时间倒序分页，`base` 是文件链接的前缀。游标是上一页最后一条的 `created_at:id`；
+ * 没有游标时从一个比所有记录都大的位置开始，这样第一页和后续页可以用同一条查询。
+ */
+export async function listImages(db: D1Database, base: string, cursor: string | null): Promise<ImageList> {
 	const match = cursor?.match(/^(\d+):([0-9A-Za-z]+)$/);
-	return match ? { createdAt: Number(match[1]), id: match[2] } : null;
+	const after = match ? [Number(match[1]), match[2]] : [Number.MAX_SAFE_INTEGER, ''];
+	const { results } = await db
+		.prepare(
+			'SELECT id, url, created_at FROM images WHERE (created_at, id) < (?, ?) ORDER BY created_at DESC, id DESC LIMIT ?'
+		)
+		.bind(...after, PAGE_SIZE + 1)
+		.all<{ id: string; url: string; created_at: number }>();
+
+	const items = results
+		.slice(0, PAGE_SIZE)
+		.map((r) => ({ id: r.id, key: r.url, url: `${base}/${r.url}`, createdAt: r.created_at }));
+	const last = items.at(-1);
+	return { items, cursor: results.length > PAGE_SIZE && last ? `${last.createdAt}:${last.id}` : null };
 }
 
 /** 先删数据库记录再删文件：即使删文件失败，也只是 R2 里留下孤儿文件，不会出现指向不存在文件的记录 */
