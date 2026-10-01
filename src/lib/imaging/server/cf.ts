@@ -19,15 +19,12 @@ export interface TransformResult {
 	contentType: string;
 }
 
-/** 只用到 binding 的 input()，测试时可以传入假实现 */
-export type ImagesInput = Pick<ImagesBinding, 'input'>;
-
 /**
  * 用 CF Images binding 按 spec 转换图片。任何失败都抛 ImagingError，由调用方决定是否降级。
  * binding 的输出总会去除元数据。
  */
 export async function transformWithCf(
-	images: ImagesInput,
+	images: ImagesBinding,
 	input: Uint8Array,
 	spec: TransformSpec
 ): Promise<TransformResult> {

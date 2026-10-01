@@ -2,7 +2,7 @@ import type { Engine, Uploader } from '$lib/api';
 
 export interface ImageRecord {
 	id: string;
-	/** R2 key，即 images.url 列，如 2026/09/abc123.webp */
+	/** R2 key，即 images.url 列，如 2026/09/28/aB3dE5fG7hJ9.webp */
 	key: string;
 	createdAt: number;
 }
@@ -11,7 +11,7 @@ const ID_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 const ID_LENGTH = 12;
 
 /** 12 位 base62 随机 ID；拒绝采样避免取模偏差 */
-export function newId(): string {
+function newId(): string {
 	let id = '';
 	while (id.length < ID_LENGTH) {
 		for (const byte of crypto.getRandomValues(new Uint8Array(ID_LENGTH * 2))) {
@@ -23,9 +23,9 @@ export function newId(): string {
 }
 
 /** R2 路径：`年/月/日/随机ID.扩展名`，日期按 timeZone 计算 */
-export function objectKey(id: string, extension: string, { date = new Date(), timeZone = 'UTC' } = {}): string {
+function objectKey(id: string, extension: string, timeZone: string): string {
 	const parts = new Intl.DateTimeFormat('en', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
-		.formatToParts(date)
+		.formatToParts(new Date())
 		.reduce<Record<string, string>>((acc, { type, value }) => ((acc[type] = value), acc), {});
 	return `${parts.year}/${parts.month}/${parts.day}/${id}.${extension}`;
 }
@@ -65,7 +65,7 @@ export interface SaveInput {
 /** 图片和视频都存在 images 表里 */
 export async function saveImage(env: Pick<Env, 'BUCKET' | 'DB'>, input: SaveInput): Promise<ImageRecord> {
 	const id = newId();
-	const key = objectKey(id, input.extension, { timeZone: input.timeZone });
+	const key = objectKey(id, input.extension, input.timeZone);
 	await env.BUCKET.put(key, input.body, {
 		httpMetadata: {
 			contentType: input.contentType,

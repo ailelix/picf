@@ -63,7 +63,7 @@ export function probe(bytes: Uint8Array, size = bytes.length): ImageInfo | null 
 	return { format, size, ...(valid && { width, height }) };
 }
 
-export function sniffFormat(bytes: Uint8Array): ImageFormat | null {
+function sniffFormat(bytes: Uint8Array): ImageFormat | null {
 	const r = new Reader(bytes);
 	if (r.startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'png';
 	if (r.startsWith([0xff, 0xd8, 0xff])) return 'jpeg';

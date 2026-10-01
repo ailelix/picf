@@ -28,7 +28,7 @@ export type Plan =
 	| { kind: 'transform'; spec: TransformSpec; engines: EngineName[]; rejected: Rejection[] };
 
 /** 按设置生成变换参数；该格式不需要转换时返回 null */
-export function buildSpec(info: ImageInfo, settings: ImagingSettings): TransformSpec | null {
+function buildSpec(info: ImageInfo, settings: ImagingSettings): TransformSpec | null {
 	if (!settings.convert.includes(info.format)) return null;
 
 	const spec: TransformSpec = { format: settings.convertTo, quality: settings.quality };

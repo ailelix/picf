@@ -22,7 +22,7 @@ export interface EngineCapabilities {
  * - AVIF 输出超过 1200px 时 CF 会静默改用 WebP/JPEG，视为不支持
  * - binding 的输出总会去除元数据，与 WASM 端的处理一致
  */
-export const CF_IMAGES: EngineCapabilities = {
+const CF_IMAGES: EngineCapabilities = {
 	input: new Set(['png', 'jpeg', 'gif', 'webp', 'heic']),
 	output: new Set(['webp', 'avif', 'jpeg', 'png']),
 	maxBytes: 20 * 1024 * 1024,
@@ -36,7 +36,7 @@ export const CF_IMAGES: EngineCapabilities = {
  * HEIC 只有 Safari 能原生解码，不支持，只能由 CF 处理。
  * 面积上限是给浏览器内存留余量的保守值。
  */
-export const WASM: EngineCapabilities = {
+const WASM: EngineCapabilities = {
 	input: new Set(['png', 'jpeg', 'webp', 'avif', 'gif', 'tiff', 'bmp', 'ico', 'svg']),
 	output: new Set(['webp', 'avif', 'jpeg', 'png']),
 	maxArea: 200_000_000

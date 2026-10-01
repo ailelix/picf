@@ -207,7 +207,7 @@ npm run dev
 
 ### 修改数据库结构
 
-在 `migrations/` 目录下新建迁移文件（例如 `0003_xxx.sql`），然后在本地执行迁移：
+在 `migrations/` 目录下新建迁移文件（例如 `0002_xxx.sql`），然后在本地执行迁移：
 
 ```sh
 npx wrangler d1 migrations apply picf-db --local

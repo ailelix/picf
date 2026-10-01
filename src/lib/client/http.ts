@@ -13,8 +13,8 @@ export class ApiRequestError extends Error {
 }
 
 /** 请求 JSON 接口，非 2xx 时抛出 ApiRequestError；没有响应体（如 204）时返回空对象 */
-export async function requestJson<T>(input: string, init?: RequestInit, fetchImpl = fetch): Promise<T> {
-	const response = await fetchImpl(input, init);
+export async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
+	const response = await fetch(input, init);
 	const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 	if (!response.ok) {
 		throw new ApiRequestError(

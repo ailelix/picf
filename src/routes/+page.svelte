@@ -4,7 +4,6 @@
 	import { uploadImage, type UploadStage } from '$lib/client/upload';
 	import Icon from '$lib/components/Icon.svelte';
 	import { errorMessage } from '$lib/i18n/errors';
-	import { isWasmAvailable, transformWithWasm } from '$lib/imaging/client/wasm';
 	import { copyText, formatLink, LINK_FORMATS, type LinkFormat } from '$lib/links';
 	import { getPrefs } from '$lib/prefs.svelte';
 	import { getToaster } from '$lib/toast.svelte';
@@ -69,11 +68,7 @@
 		// 立即离开 waiting 状态，避免被下一轮 pump 重复选中
 		item.status = 'uploading';
 		try {
-			item.result = await uploadImage(item.file, data.config, {
-				wasmAvailable: isWasmAvailable(),
-				transform: transformWithWasm,
-				onStage: (stage) => (item.status = stage)
-			});
+			item.result = await uploadImage(item.file, data.config, (stage) => (item.status = stage));
 			item.status = 'done';
 		} catch (error) {
 			item.error = errorMessage(t, error);

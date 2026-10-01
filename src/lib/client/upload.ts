@@ -7,7 +7,7 @@ import {
 	type UploadMode
 } from '$lib/api';
 import { MIME_TYPES, plan, probe, type TransformSpec } from '$lib/imaging/core';
-import type { transformWithWasm } from '$lib/imaging/client/wasm';
+import { isWasmAvailable, transformWithWasm } from '$lib/imaging/client/wasm';
 import { sniffVideo } from '$lib/video';
 import { ApiRequestError, requestJson } from './http';
 
@@ -16,22 +16,17 @@ const PROBE_BYTES = 256 * 1024;
 
 export type UploadStage = 'uploading' | 'processing';
 
-export interface UploadDeps {
-	/** 浏览器能否使用 WASM 处理，见 isWasmAvailable() */
-	wasmAvailable: boolean;
-	transform: typeof transformWithWasm;
-	fetch?: typeof fetch;
-	onStage?: (stage: UploadStage) => void;
-}
-
 /**
  * 浏览器上传流程：本地先用 planner 预判，能确定 CF 处理不了的直接用 WASM，
  * 否则先交给服务端用 CF 处理，失败（422）再用 WASM 处理后重新上传。
  * WASM 也失败时原样上传。视频不做处理，直接上传。
  * 失败时抛出 ApiRequestError，本地检查不通过时同样使用它，便于统一显示错误。
  */
-export async function uploadImage(file: File, config: ClientConfig, deps: UploadDeps): Promise<UploadedImage> {
-	const { wasmAvailable, transform, fetch = globalThis.fetch, onStage } = deps;
+export async function uploadImage(
+	file: File,
+	config: ClientConfig,
+	onStage?: (stage: UploadStage) => void
+): Promise<UploadedImage> {
 	const head = new Uint8Array(await file.slice(0, PROBE_BYTES).arrayBuffer());
 	const info = probe(head, file.size);
 
@@ -40,7 +35,7 @@ export async function uploadImage(file: File, config: ClientConfig, deps: Upload
 		const form = new FormData();
 		form.set('file', body);
 		form.set('mode', mode);
-		return requestJson<UploadedImage>('/api/images', { method: 'POST', body: form }, fetch);
+		return requestJson<UploadedImage>('/api/images', { method: 'POST', body: form });
 	};
 
 	if (!info) {
@@ -56,7 +51,7 @@ export async function uploadImage(file: File, config: ClientConfig, deps: Upload
 		let output: Uint8Array;
 		try {
 			const bytes = new Uint8Array(await file.arrayBuffer());
-			output = (await transform(bytes, info.format, spec)).bytes;
+			output = (await transformWithWasm(bytes, info.format, spec)).bytes;
 		} catch (error) {
 			console.warn('WASM 处理失败，原样上传', error);
 			return send(file, 'raw');
@@ -65,7 +60,7 @@ export async function uploadImage(file: File, config: ClientConfig, deps: Upload
 		return send(new File([output as BlobPart], file.name, { type: MIME_TYPES[spec.format] }), 'processed');
 	};
 
-	const p = plan(info, config.imaging, { cfEnabled: config.cfEnabled, wasmAvailable });
+	const p = plan(info, config.imaging, { cfEnabled: config.cfEnabled, wasmAvailable: isWasmAvailable() });
 	if (p.kind === 'store') return send(file, 'raw');
 	if (p.engines[0] === 'wasm') return processLocally(p.spec);
 

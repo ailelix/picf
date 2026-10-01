@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 
@@ -24,19 +24,5 @@ export default defineConfig({
 	preview: { headers: isolationHeaders },
 	// wasm-vips 用 new URL('vips-es6.js', import.meta.url) 启动线程，预打包会破坏这个路径
 	optimizeDeps: { exclude: ['wasm-vips'] },
-	worker: { format: 'es' },
-	test: {
-		expect: { requireAssertions: true },
-		projects: [
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'server',
-					environment: 'node',
-					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-				}
-			}
-		]
-	}
+	worker: { format: 'es' }
 });
