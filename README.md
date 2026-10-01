@@ -44,6 +44,19 @@ Cloudflare Images 免费版每月提供 5000 次转换。额度用完后不会�
 
 如果控制台提示 Images 服务未开通，请在「Images」页面开通。如果不使用 Cloudflare Images，可以添加环境变量 `CF_IMAGE`，值设为 `false`，此时所有图片都由浏览器处理。
 
+### 在控制台中导入仓库
+
+也可以不使用一键部署，而是将本项目推送或 fork 到自己的 GitHub 或 GitLab 仓库，再在控制台的「Workers 和 Pages（Workers & Pages）」中选择「创建 → 导入存储库（Create → Import a repository）」。此时需要按下表填写构建配置：
+
+| 配置项 | 值 |
+|---|---|
+| 构建命令（Build command） | `npm run build` |
+| 部署命令（Deploy command） | `npm run deploy` |
+
+部署命令必须改为 `npm run deploy`，不能使用默认的 `npx wrangler deploy`。`npm run deploy` 会在部署后执行数据库迁移，创建所需的数据表；使用默认命令时，站点可以部署成功，但上传和图片列表会因为缺少数据表而出错。已经创建的 Worker 可以在「设置 → 构建（Settings → Build）」中修改部署命令。
+
+R2 存储桶和 D1 数据库同样会在首次部署时自动创建。部署完成后，在 Worker 的「设置 → 变量和机密」中添加 `ADMIN_USER`、`ADMIN_PASSWORD`，然后按下一节配置 R2 公共访问。
+
 ### 配置 R2 公共访问
 
 上传的文件由 R2 存储桶的公共域名直接对外提供，不经过 Worker。因此，部署后需要为存储桶开启公共访问，并将访问地址配置到环境变量 `R2_PUBLIC_URL` 中。

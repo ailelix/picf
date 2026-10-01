@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "wrangler types --include-env=false --check && vite build",
 		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
-		"deploy": "npm run db:migrate && wrangler deploy",
+		"deploy": "wrangler deploy && npm run db:migrate",
 		"db:migrate": "wrangler d1 migrations apply DB --remote",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "wrangler types --include-env=false --check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

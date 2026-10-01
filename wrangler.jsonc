@@ -22,8 +22,8 @@
 		{
 			"binding": "DB",
 			"database_name": "picf-db",
-			// 占位值。一键部署时 Cloudflare 会创建数据库并替换为实际 ID；本地开发不需要
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			// 不填 database_id：部署时 wrangler 会沿用已绑定的数据库，或按名称绑定已有的同名数据库，
+			// 都没有则自动创建。填了 ID 时 wrangler 不会自动创建，ID 不存在就会部署失败
 			"migrations_dir": "migrations"
 		}
 	],
