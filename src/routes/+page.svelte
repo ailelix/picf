@@ -19,7 +19,8 @@
 		/** 本地预览；浏览器显示不了的格式（TIFF、HEIC 等）加载失败后改显示图标 */
 		preview: string | null;
 		previewFailed: boolean;
-		status: 'waiting' | UploadStage | 'done' | 'error';
+		/** pending：已选择、等待点击上传；queued：已点击上传、等待空位 */
+		status: 'pending' | 'queued' | UploadStage | 'done' | 'error';
 		result?: UploadedImage;
 		error?: string;
 	}
@@ -32,12 +33,15 @@
 	let nextId = 0;
 	let active = 0;
 
+	const pendingCount = $derived(items.filter((i) => i.status === 'pending').length);
+
 	onMount(() => () => items.forEach((item) => item.preview && URL.revokeObjectURL(item.preview)));
 
 	const accept = $derived(
 		['image/*', '.heic', '.heif', ...(data.config.allowVideo ? [...Object.values(VIDEO_MIME_TYPES), '.mov'] : [])].join(',')
 	);
 
+	/** 选择、拖放或粘贴的文件先进入待上传列表，点击上传按钮后才开始上传 */
 	function add(files: Iterable<File>) {
 		for (const file of files) {
 			const isImage = file.type.startsWith('image/');
@@ -46,16 +50,20 @@
 				file,
 				preview: isImage ? URL.createObjectURL(file) : null,
 				previewFailed: false,
-				status: 'waiting'
+				status: 'pending'
 			});
 		}
+	}
+
+	function start() {
+		for (const item of items) if (item.status === 'pending') item.status = 'queued';
 		pump();
 	}
 
-	/** 按队列顺序启动等待中的文件，同时进行的不超过 CONCURRENCY 个 */
+	/** 按列表顺序启动排队中的文件，同时进行的不超过 CONCURRENCY 个 */
 	function pump() {
 		let item: Item | undefined;
-		while (active < CONCURRENCY && (item = items.find((i) => i.status === 'waiting'))) {
+		while (active < CONCURRENCY && (item = items.find((i) => i.status === 'queued'))) {
 			active++;
 			void upload(item).finally(() => {
 				active--;
@@ -65,7 +73,7 @@
 	}
 
 	async function upload(item: Item) {
-		// 立即离开 waiting 状态，避免被下一轮 pump 重复选中
+		// 立即离开 queued 状态，避免被下一轮 pump 重复选中
 		item.status = 'uploading';
 		try {
 			item.result = await uploadImage(item.file, data.config, (stage) => (item.status = stage));
@@ -77,8 +85,12 @@
 	}
 
 	/** 只能移除还没开始或已失败的文件；处理或上传中的不能中途取消 */
+	function removable(item: Item) {
+		return item.status === 'pending' || item.status === 'queued' || item.status === 'error';
+	}
+
 	function remove(item: Item) {
-		if (item.status !== 'waiting' && item.status !== 'error') return;
+		if (!removable(item)) return;
 		if (item.preview) URL.revokeObjectURL(item.preview);
 		items = items.filter((i) => i.id !== item.id);
 	}
@@ -142,6 +154,10 @@
 
 {#if items.length > 0}
 	<div class="toolbar">
+		<button class="btn filled" onclick={start} disabled={pendingCount === 0}>
+			<Icon name="cloudUpload" size={18} />
+			{t('upload.start', { count: pendingCount })}
+		</button>
 		<button class="btn text small" onclick={clearFinished} disabled={!items.some((i) => i.status === 'done')}>
 			{t('upload.clear')}
 		</button>
@@ -190,7 +206,7 @@
 							</button>
 						{/each}
 					</div>
-				{:else if item.status === 'waiting' || item.status === 'error'}
+				{:else if removable(item)}
 					<button class="icon-btn remove" title={t('upload.remove')} aria-label={t('upload.remove')} onclick={() => remove(item)}>
 						<Icon name="close" />
 					</button>
@@ -237,7 +253,9 @@
 
 	.toolbar {
 		display: flex;
-		justify-content: flex-end;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
 		margin: 16px 0 8px;
 	}
 
