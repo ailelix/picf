@@ -18,7 +18,6 @@ declare global {
 		CONVERT_FORMATS?: string;
 		CONVERT_TO?: string;
 		QUALITY?: string;
-		MAX_EDGE?: string;
 		ALLOW_ANONYMOUS?: string;
 		ALLOW_VIDEO?: string;
 		TIMEZONE?: string;

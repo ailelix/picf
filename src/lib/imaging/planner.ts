@@ -7,24 +7,24 @@ export interface ImagingSettings {
 	convertTo: OutputFormat;
 	/** 1-100 */
 	quality: number;
-	/** 转换时的最长边上限，只缩小不放大；null 表示不限制 */
-	maxEdge: number | null;
 }
 
 export const DEFAULT_IMAGING_SETTINGS: ImagingSettings = {
 	convert: ['jpeg', 'png', 'bmp', 'tiff', 'heic'],
 	convertTo: 'webp',
-	quality: 80,
-	maxEdge: null
+	quality: 80
 };
 
 /**
- * 一次变换的参数，CF 和 WASM 两边按相同语义实现，保证产出一致：
- * - 缩放只缩小不放大，等同于 CF Images 的 fit=scale-down
+ * 一次转换的参数，CF 和 WASM 两边按相同语义实现，保证产出一致：
  * - 输入是动图且输出格式支持动画时保留动画，否则只取第一帧
  * - 总是去除 EXIF（含 GPS 位置）、ICC 等元数据
  */
-export type TransformSpec = Pick<ImagingSettings, 'quality' | 'maxEdge'> & { format: OutputFormat };
+export interface TransformSpec {
+	format: OutputFormat;
+	/** 1-100 */
+	quality: number;
+}
 
 export type EngineName = 'cf' | 'wasm';
 
@@ -74,7 +74,7 @@ function supports(limits: EngineLimits, info: ImageInfo, spec: TransformSpec): b
 	if (limits.maxArea && width * height > limits.maxArea) return false;
 
 	const outputLimit = limits.maxOutputEdge?.[spec.format];
-	return !outputLimit || Math.min(edge, spec.maxEdge ?? edge) <= outputLimit;
+	return !outputLimit || edge <= outputLimit;
 }
 
 export interface Plan {
@@ -87,7 +87,7 @@ export interface Plan {
 export function plan(info: ImageInfo, settings: ImagingSettings, available: Record<EngineName, boolean>): Plan | null {
 	if (!settings.convert.includes(info.format)) return null;
 
-	const spec: TransformSpec = { format: settings.convertTo, quality: settings.quality, maxEdge: settings.maxEdge };
+	const spec: TransformSpec = { format: settings.convertTo, quality: settings.quality };
 	const engines = (['cf', 'wasm'] as const).filter((engine) => available[engine] && supports(LIMITS[engine], info, spec));
 	return engines.length > 0 ? { spec, engines } : null;
 }

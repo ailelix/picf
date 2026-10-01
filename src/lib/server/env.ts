@@ -54,7 +54,7 @@ const parseBoolean: Parser<boolean> = (raw) => {
 };
 
 const parseInteger =
-	(min: number, max = Number.MAX_SAFE_INTEGER): Parser<number> =>
+	(min: number, max: number): Parser<number> =>
 	(raw) => {
 		const value = Number(raw);
 		return /^\d+$/.test(raw) && value >= min && value <= max ? value : undefined;
@@ -128,7 +128,6 @@ export function loadConfig(env: Env): ConfigResult {
 	const convert = read('CONVERT_FORMATS', parseFormatList, formatList, DEFAULT_IMAGING_SETTINGS.convert);
 	const convertTo = read('CONVERT_TO', parseOutputFormat, OUTPUT_FORMATS.join(' | '), DEFAULT_IMAGING_SETTINGS.convertTo);
 	const quality = read('QUALITY', parseInteger(1, 100), '1–100', DEFAULT_IMAGING_SETTINGS.quality);
-	const maxEdge = read('MAX_EDGE', parseInteger(1), '≥ 1', DEFAULT_IMAGING_SETTINGS.maxEdge);
 	const allowAnonymous = read('ALLOW_ANONYMOUS', parseBoolean, 'true | false', false);
 	const allowVideo = read('ALLOW_VIDEO', parseBoolean, 'true | false', true);
 	const timeZone = read('TIMEZONE', parseTimeZone, 'IANA time zone, e.g. Asia/Shanghai', 'UTC');
@@ -140,7 +139,7 @@ export function loadConfig(env: Env): ConfigResult {
 			admin: { user: user!, password: password! },
 			r2PublicUrl: r2PublicUrl!,
 			cfImage: cfImage!,
-			imaging: { convert: convert!, convertTo: convertTo!, quality: quality!, maxEdge: maxEdge! },
+			imaging: { convert: convert!, convertTo: convertTo!, quality: quality! },
 			allowAnonymous: allowAnonymous!,
 			allowVideo: allowVideo!,
 			timeZone: timeZone!

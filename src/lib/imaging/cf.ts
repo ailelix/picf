@@ -8,11 +8,7 @@ import type { TransformSpec } from './planner';
  */
 export async function transformWithCf(images: ImagesBinding, input: Blob, spec: TransformSpec): Promise<Uint8Array> {
 	const mime = MIME_TYPES[spec.format] as ImageOutputOptions['format'];
-	let transformer = images.input(input.stream());
-	if (spec.maxEdge !== null) {
-		transformer = transformer.transform({ width: spec.maxEdge, height: spec.maxEdge, fit: 'scale-down' });
-	}
-	const result = await transformer.output({ format: mime, quality: spec.quality });
+	const result = await images.input(input.stream()).output({ format: mime, quality: spec.quality });
 	const bytes = new Uint8Array(await new Response(result.image()).arrayBuffer());
 
 	// 输出超出限制时 CF 会静默改用其他格式（如 AVIF 超过 1200px），视为失败

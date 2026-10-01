@@ -8,7 +8,7 @@ picf 是一个运行在 Cloudflare Workers 上的单用户图床。项目基于 
 
 - **图片上传**：支持 PNG、JPG、WebP、AVIF、GIF、TIFF、BMP、ICO、HEIC、SVG，单个文件上限 50MB。
 - **视频上传**：默认开启，可通过环境变量关闭。支持 MP4、WebM、MOV，文件原样保存，单个文件上限 90MB。
-- **格式转换**：上传时自动将指定格式的图片转换为统一的目标格式（WebP、AVIF、JPEG 或 PNG），并可设置压缩质量和最长边上限。转换后的图片总会去除 EXIF 等元数据（含 GPS 位置）；不转换的格式原样保存，保留原有元数据。
+- **格式转换**：上传时自动将指定格式的图片转换为统一的目标格式（WebP、AVIF、JPEG 或 PNG），并可设置压缩质量。转换后的图片总会去除 EXIF 等元数据（含 GPS 位置）；不转换的格式原样保存，保留原有元数据。
 - **图片管理**：登录后可浏览已上传的文件，复制链接（URL、Markdown、HTML 三种格式）或删除文件。
 - **匿名上传**：可通过环境变量开启。开启后，未登录的访客可以在首页上传文件，但无法查看文件列表或删除文件。
 - **界面**：支持中文和英文、浅色和深色主题。默认跟随浏览器语言和系统主题，也可以手动切换。
@@ -138,7 +138,6 @@ picf 的所有配置都通过环境变量设置。`ADMIN_USER` 和 `ADMIN_PASSWO
 | `CONVERT_FORMATS` | `jpeg,png,bmp,tiff,heic` | 上传时需要转换的格式，以逗号分隔。可选值为 `png`、`jpeg`、`webp`、`avif`、`gif`、`tiff`、`bmp`、`ico`、`heic`、`svg`，也接受 `jpg`、`tif`、`heif`。设为 `none` 时不转换任何格式。未列出的格式原样保存。 |
 | `CONVERT_TO` | `webp` | 转换的目标格式，可选值为 `webp`、`avif`、`jpeg`、`png`。 |
 | `QUALITY` | `80` | 压缩质量，取值为 1–100 的整数，对 WebP、AVIF、JPEG 有效。 |
-| `MAX_EDGE` | 不限制 | 转换时的最长边上限（像素），超过时等比缩小。 |
 | `ALLOW_ANONYMOUS` | `false` | 是否允许匿名上传。开启后，未登录的访客可以在首页上传文件，但无法查看文件列表或删除文件。 |
 | `ALLOW_VIDEO` | `true` | 是否允许上传视频（MP4、WebM、MOV，原样保存）。 |
 | `TIMEZONE` | `UTC` | 文件在 R2 中按「年/月/日」分目录存放，例如 `2026/09/29/aB3xK9mQ2zLp.webp`。此项指定计算日期所用的时区，取值为 IANA 时区名，例如 `Asia/Shanghai`。 |

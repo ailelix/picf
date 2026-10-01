@@ -23,8 +23,6 @@ const WASM_URLS: Record<string, string> = {
 const NATIVE_DECODE_FORMATS = new Set<ImageFormat>(['bmp', 'ico']);
 /** 可能是动图、vips 加载时支持 n 参数的输入格式 */
 const ANIMATED_INPUTS = new Set<ImageFormat>(['gif', 'webp']);
-/** 没有最长边上限时用这个作为缩放框，配合 size: 'down' 即不缩放 */
-const NO_LIMIT = 10_000_000;
 
 let vips: Promise<VipsModule> | undefined;
 
@@ -50,8 +48,7 @@ self.onmessage = async ({ data: { bytes, format, spec } }: MessageEvent<WorkerRe
 };
 
 /**
- * 按 spec 处理图片，语义与 CF Images 保持一致：
- * - 只缩小不放大
+ * 按 spec 转换图片，语义与 CF Images 保持一致：
  * - 输入是动图且输出 WebP 时保留动画，否则取第一帧
  * - 转换到 sRGB 后去除全部元数据
  * - 透明图输出 JPEG 时铺白底
@@ -59,18 +56,18 @@ self.onmessage = async ({ data: { bytes, format, spec } }: MessageEvent<WorkerRe
 async function transform(vips: VipsModule, bytes: Uint8Array, format: ImageFormat, spec: TransformSpec) {
 	const images: VipsImage[] = [];
 	const track = (image: VipsImage) => (images.push(image), image);
-	const edge = spec.maxEdge ?? NO_LIMIT;
-	const options = { height: edge, size: 'down' };
 
 	try {
 		let image: VipsImage;
 		if (NATIVE_DECODE_FORMATS.has(format)) {
 			const { data, width, height } = await decodeNative(bytes, format);
 			const raw = track(vips.Image.newFromMemory(data, width, height, 4, vips.BandFormat.uchar));
-			image = track(track(raw.copy({ interpretation: 'srgb' })).thumbnailImage(edge, options));
+			image = track(raw.copy({ interpretation: 'srgb' }));
 		} else {
 			const keepFrames = ANIMATED_INPUTS.has(format) && spec.format === 'webp';
-			image = track(vips.Image.thumbnailBuffer(bytes, edge, { ...options, option_string: keepFrames ? 'n=-1' : '' }));
+			image = track(vips.Image.newFromBuffer(bytes, keepFrames ? 'n=-1' : ''));
+			// 按 EXIF 方向转正，因为之后元数据会被去掉。动图的各帧纵向拼在一起，不能整体旋转（动图也极少带方向信息）
+			if (!keepFrames) image = track(image.autorot());
 		}
 
 		if (image.getTypeof('icc-profile-data')) {
