@@ -31,7 +31,7 @@ picf 使用两种方式处理图片，按以下顺序选择：
 ## 部署
 
 ### 一键部署
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/OWNER/picf)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ailelix/picf)
 
 流程如下：
 

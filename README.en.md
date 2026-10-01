@@ -31,7 +31,7 @@ picf processes images in two ways, chosen in the following order:
 ## Deployment
 
 ### One-click deployment
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/OWNER/picf)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ailelix/picf)
 
 The process is as follows:
 
