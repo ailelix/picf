@@ -177,16 +177,20 @@
 		border-radius: var(--radius-l);
 		background: var(--surface);
 	}
+	/* 所有卡片的预览区都是正方形，图片裁剪填满；图片脱离文档流，否则竖图会把 aspect-ratio 撑高 */
 	.preview {
 		position: relative;
 		display: grid;
 		place-items: center;
 		aspect-ratio: 1;
+		overflow: hidden;
 		background: var(--surface-2);
 		color: var(--text-2);
 	}
 	.preview img,
 	.preview video {
+		position: absolute;
+		inset: 0;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
@@ -216,7 +220,8 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 4px;
-		padding: 8px 8px 8px 12px;
+		height: 56px;
+		padding: 0 8px 0 12px;
 	}
 	.meta {
 		display: grid;
